@@ -27,13 +27,10 @@ Breakdown:
 
 Preprocess movies
 Clean movie titles + convert genres into a unified text field.
-
 Vectorization using TF-IDF
 Converts text into numeric vectors.
-
 Compute similarity matrix
 Using cosine similarity on TF-IDF vectors.
-
 Real-time recommendations
 Select a movie → instantly view top similar titles.
 
@@ -49,46 +46,28 @@ Deployment	Streamlit Cloud
 -- Installation --
 
 Clone the repo:
-
-git clone https://github.com/sanskarkadam/movie-recommender.git
-cd movie-recommender
-
-
+   git clone https://github.com/sanskarkadam/movie-recommender.git
+   cd movie-recommender
 Create virtual environment (Windows):
-
-python -m venv .venv
-.venv\Scripts\activate
-
-
+   python -m venv .venv
+   .venv\Scripts\activate
 Install dependencies:
-
-pip install -r requirements.txt
-
-▶️ Run Locally
-streamlit run app/main.py
-
-
+  pip install -r requirements.txt
+  ▶️ Run Locally
+  streamlit run app/main.py
 Open in browser:
-
-http://localhost:8501
+  http://localhost:8501
 
 -- Deploy on Streamlit Cloud --
 
-Push project to GitHub
-
-Go to https://share.streamlit.io
-
-Click New App
-
-Select:
-
-Repository: sanskarkadam/movie-recommender
-
-Branch: main
-
-File: app/main.py
-
-Deploy.
+-Push project to GitHub
+-Go to https://share.streamlit.io
+-Click New App
+-Select:
+-Repository: sanskarkadam/movie-recommender
+-Branch: main
+-File: app/main.py
+-Deploy.
 
 -- Features --
 

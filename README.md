@@ -47,23 +47,6 @@ Dataset	MovieLens 100k
 Deployment	Streamlit Cloud
 
 
-	📂 Project Structure
-movie-recommender/
-│
-├── app/
-│   ├── main.py              # Streamlit app UI
-│   └── utils.py             # Data loading, TF-IDF, similarity, recommend()
-│
-├── data/
-│   └── movies.csv           # Preprocessed MovieLens data
-│
-├── models/
-│   ├── tfidf.pkl            # Saved TF-IDF model
-│   └── similarity.npy       # Cosine similarity matrix
-│
-├── requirements.txt
-└── README.md
-
 🔧 Installation
 
 Clone the repo:

@@ -11,17 +11,16 @@ https://movie-recommender-sanskarkadam.streamlit.app/
 
 This is a lightweight content-based recommender system that suggests similar movies based on:
 
-🎞 Movie titles
+- Movie titles
 
-🎭 Genres
+- Genres
 
-📚 TF-IDF text features
+- TF-IDF text features
 
-📐 Cosine similarity matrix
+- Cosine similarity matrix
 
 The app uses the MovieLens 100k dataset and provides instant recommendations via a clean Streamlit UI.
-
-🧠 How It Works (Architecture)
+How It Works (Architecture)
 Movie Dataset → Preprocessing → TF-IDF Vectorizer → Similarity Matrix → Streamlit UI → Recommendations
 
 Breakdown:
@@ -38,7 +37,7 @@ Using cosine similarity on TF-IDF vectors.
 Real-time recommendations
 Select a movie → instantly view top similar titles.
 
-🛠️ Tech Stack
+-- Tech Stack --
 Layer	Technology
 Frontend UI	Streamlit
 Backend Logic	Python
@@ -47,7 +46,7 @@ Dataset	MovieLens 100k
 Deployment	Streamlit Cloud
 
 
-🔧 Installation
+-- Installation --
 
 Clone the repo:
 
@@ -73,7 +72,7 @@ Open in browser:
 
 http://localhost:8501
 
-🌐 Deploy on Streamlit Cloud
+-- Deploy on Streamlit Cloud --
 
 Push project to GitHub
 
@@ -89,9 +88,9 @@ Branch: main
 
 File: app/main.py
 
-Deploy 🎉
+Deploy.
 
-🎯 Features
+-- Features --
 
 ✔ Content-based similarity
 ✔ Streamlit UI
@@ -101,7 +100,7 @@ Deploy 🎉
 ✔ Beginner-friendly
 ✔ Expandable ML structure
 
-🔮 Future Improvements
+-- Future Improvements --
 
 Here are some upgrades you can add:
 
@@ -119,11 +118,11 @@ Here are some upgrades you can add:
 
 I can help you implement any of these — just tell me!
 
-🤝 Contributions
+-- Contributions --
 
 Pull requests are welcome.
 Found an issue? Open an issue on GitHub.
 
-📜 License
+-- License --
 
 MIT License — free to use, modify, and distribute.

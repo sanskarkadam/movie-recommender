@@ -4,7 +4,7 @@ A clean, fast, and interactive content-based movie recommendation system built w
 
 🚀 Live Demo
 
-🔗 Your Streamlit Cloud App:
+🔗 Streamlit Cloud App:
 https://movie-recommender-sanskarkadam.streamlit.app/
 
 📌 Project Overview

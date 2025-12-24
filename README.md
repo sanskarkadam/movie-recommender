@@ -1,13 +1,13 @@
-🎬 Movie Recommender System
+🎬 Movie Recommender System :
 
 A clean, fast, and interactive content-based movie recommendation system built with Python + Streamlit + TF-IDF using the MovieLens dataset.
 
-🚀 Live Demo
+🚀 Live Demo :
 
 🔗 Streamlit Cloud App:
 https://movie-recommender-sanskarkadam.streamlit.app/
 
-📌 Project Overview
+📌 Project Overview :
 
 This is a lightweight content-based recommender system that suggests similar movies based on:
 

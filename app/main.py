@@ -1,28 +1,57 @@
-import sys, os
-sys.path.append(os.path.dirname(os.path.dirname(__file__)))
-import streamlit as st
-from app.utils import build_and_save_model, load_artifacts, recommend
+import sys
 from pathlib import Path
 
-st.set_page_config(page_title="Movie Recommender")
+# Ensure project root is in path (important for Streamlit Cloud)
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.append(str(ROOT))
 
-st.title("Simple Movie Recommender — Demo")
+import streamlit as st
+from app.utils import build_and_save_model, load_artifacts, recommend
 
-models_dir = Path(__file__).resolve().parents[1] / "models"
-if not (models_dir / "similarity.npy").exists():
-    st.info("Building model — this runs once. Please wait...")
-    movies = build_and_save_model()
+# Page config
 
-movies, tfidf, sim = load_artifacts()
+st.set_page_config(
+    page_title="Movie Recommender",
+    page_icon="🎬",
+    layout="centered"
+)
 
-movie_choice = st.selectbox("Choose a movie", movies['title'].tolist())
-top_k = st.slider("Number of recommendations", min_value=3, max_value=20, value=5)
+st.title("🎬 Simple Movie Recommender — Demo")
+
+# Load or build model
+
+if not Path("models").exists() or not list(Path("models").glob("*")):
+    with st.spinner("Building model (first run only)..."):
+        movies = build_and_save_model()
+else:
+    movies, vectorizer, similarity = load_artifacts()
+
+# UI Inputs
+
+selected_movie = st.selectbox(
+    "Choose a movie",
+    sorted(movies["title"].tolist())
+)
+
+num_recs = st.slider(
+    "Number of recommendations",
+    min_value=3,
+    max_value=20,
+    value=5
+)
+
+# Recommendation Button
 
 if st.button("Recommend"):
-    recs = recommend(movie_choice, movies, sim, top_n=top_k)
-    if not recs:
-        st.write("No recommendations found.")
-    else:
-        st.write("Top recommendations:")
-        for i, r in enumerate(recs, 1):
-            st.write(f"{i}. {r}")
+    recommendations = recommend(
+        selected_movie,
+        movies,
+        similarity,
+        top_n=num_recs
+    )
+
+    st.subheader("Top recommendations")
+
+    for i, movie in enumerate(recommendations, start=1):
+        st.write(f"{i}. 🎥 {movie}")

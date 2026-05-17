@@ -298,36 +298,45 @@ GENRE_NAMES = [
     "Musical","Mystery","Romance","Sci-Fi","Thriller","War","Western"
 ]
 
-def _find_data_file(filename: str) -> str:
-    from pathlib import Path
-
-    here = Path(__file__).resolve()          # …/app/main.py
-    repo_root = here.parent.parent           # …/movie-recommender/
-
-    candidates = [
-        repo_root / "ml-100k" / filename,   # repo_root/ml-100k/  ← Streamlit Cloud & local
-        here.parent / "ml-100k" / filename, # app/ml-100k/
-        repo_root / "data" / filename,
-    ]
-
-    # Brute-force: any ml-100k folder anywhere under repo root
-    for p in repo_root.rglob(filename):
-        candidates.append(p)
-
-    for p in candidates:
-        if p.exists():
-            return str(p)
-
-    raise FileNotFoundError(
-        f"'{filename}' not found. Repo root: {repo_root}. "
-        f"Contents: {list(repo_root.iterdir())}"
-    )
-
-
 @st.cache_data
 def load_data():
-    item_path   = _find_data_file("u.item")
-    rating_path = _find_data_file("u.data")
+    from pathlib import Path
+
+    here = Path(__file__).resolve()  # e.g. /mount/src/movie-recommender/app/main.py
+
+    # Candidate roots tried in order — covers Streamlit Cloud + local
+    roots = [
+        Path("/mount/src/movie-recommender"),
+        here.parent.parent,
+        here.parent,
+        Path.cwd(),
+    ]
+
+    ml100k_dir = None
+    for root in roots:
+        candidate = root / "ml-100k"
+        if (candidate / "u.item").exists():
+            ml100k_dir = candidate
+            break
+
+    if ml100k_dir is None:
+        # Absolute last resort: walk /mount looking for u.item
+        try:
+            for p in Path("/mount").rglob("u.item"):
+                ml100k_dir = p.parent
+                break
+        except Exception:
+            pass
+
+    if ml100k_dir is None:
+        raise FileNotFoundError(
+            f"Cannot find ml-100k/u.item. "
+            f"__file__={here}, cwd={Path.cwd()}, "
+            f"roots tried={[str(r / 'ml-100k') for r in roots]}"
+        )
+
+    item_path   = str(ml100k_dir / "u.item")
+    rating_path = str(ml100k_dir / "u.data")
 
     # ── Movies ──
     cols = ["movie_id","title","release_date","video_release","imdb_url"] + GENRE_NAMES

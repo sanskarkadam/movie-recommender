@@ -298,14 +298,44 @@ GENRE_NAMES = [
     "Musical","Mystery","Romance","Sci-Fi","Thriller","War","Western"
 ]
  
+def _find_data_file(filename: str) -> str:
+    """
+    Search several candidate locations for a MovieLens data file.
+    Works locally (app/ next to ml-100k/) and on Streamlit Cloud
+    (/mount/src/<repo>/ml-100k/).
+    """
+    from pathlib import Path
+ 
+    # Start from this file and walk up, then try common sub-paths
+    here = Path(__file__).resolve()
+    candidates = []
+    for parent in [here.parent, here.parent.parent, Path("/mount/src").resolve()]:
+        candidates += [
+            parent / "ml-100k" / filename,
+            parent / "data" / filename,
+        ]
+        # Also try every direct child of /mount/src/<something>/ml-100k
+        if parent.name == "src":
+            for child in parent.iterdir() if parent.exists() else []:
+                candidates.append(child / "ml-100k" / filename)
+ 
+    for p in candidates:
+        if p.exists():
+            return str(p)
+ 
+    # Last resort: scan cwd tree
+    for p in Path.cwd().rglob(filename):
+        return str(p)
+ 
+    raise FileNotFoundError(
+        f"Cannot find '{filename}'. Tried: {[str(c) for c in candidates]}"
+    )
+ 
+ 
 @st.cache_data
 def load_data():
-    # Resolve paths relative to this file
-    base = os.path.dirname(os.path.abspath(__file__))
-    root = os.path.dirname(base)
- 
-    item_path   = os.path.join(root, "ml-100k", "u.item")
-    rating_path = os.path.join(root, "ml-100k", "u.data")
+    item_path   = _find_data_file("u.item")
+    rating_path = _find_data_file("u.data")
  
     # ── Movies ──
     cols = ["movie_id","title","release_date","video_release","imdb_url"] + GENRE_NAMES

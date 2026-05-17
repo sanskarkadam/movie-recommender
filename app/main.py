@@ -4,7 +4,7 @@ import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 import os
- 
+
 # ── Page Config ────────────────────────────────────────────────────────────────
 st.set_page_config(
     page_title="CineMatch — Movie Recommender",
@@ -12,12 +12,12 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="collapsed",
 )
- 
+
 # ── Custom CSS ─────────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,600;1,9..40,300&display=swap');
- 
+
 /* ── Root Variables ── */
 :root {
     --bg:        #0a0a0f;
@@ -30,7 +30,7 @@ st.markdown("""
     --muted:     #7a7a9a;
     --radius:    12px;
 }
- 
+
 /* ── Global Reset ── */
 html, body, [class*="css"] {
     font-family: 'DM Sans', sans-serif !important;
@@ -40,7 +40,7 @@ html, body, [class*="css"] {
 .stApp { background: var(--bg) !important; }
 .block-container { padding: 0 2rem 4rem !important; max-width: 1400px !important; }
 #MainMenu, footer, header { visibility: hidden; }
- 
+
 /* ── Hero ── */
 .hero {
     background: linear-gradient(135deg, #0a0a0f 0%, #1a0a1f 40%, #0f1525 100%);
@@ -95,7 +95,7 @@ html, body, [class*="css"] {
     font-size: 1.8rem; color: var(--accent); line-height: 1;
 }
 .stat-label { font-size: 0.72rem; color: var(--muted); letter-spacing: 0.08em; text-transform: uppercase; }
- 
+
 /* ── Section Headers ── */
 .section-header {
     display: flex; align-items: center; gap: 12px;
@@ -119,7 +119,7 @@ html, body, [class*="css"] {
     margin: 0 !important;
 }
 .section-desc { font-size: 0.8rem; color: var(--muted); margin-left: auto; }
- 
+
 /* ── Movie Card ── */
 .movie-card {
     background: var(--card);
@@ -189,7 +189,7 @@ html, body, [class*="css"] {
     border-radius: 2px;
 }
 .similarity-label { font-size: 0.68rem; color: var(--muted); margin-top: 3px; }
- 
+
 /* ── Streamlit Widget Overrides ── */
 .stSelectbox > div > div {
     background: var(--card) !important;
@@ -222,7 +222,7 @@ html, body, [class*="css"] {
     border-color: var(--border) !important;
     border-radius: var(--radius) !important;
 }
- 
+
 /* ── Tabs ── */
 .stTabs [data-baseweb="tab-list"] {
     background: var(--surface) !important;
@@ -247,7 +247,7 @@ html, body, [class*="css"] {
     border: 1px solid var(--border) !important;
 }
 .stTabs [data-baseweb="tab-panel"] { padding-top: 1.5rem !important; }
- 
+
 /* ── Alerts ── */
 .result-header {
     background: rgba(232,184,75,0.07);
@@ -259,7 +259,7 @@ html, body, [class*="css"] {
     font-size: 0.9rem; color: var(--accent);
     font-weight: 600;
 }
- 
+
 /* ── Genre Grid ── */
 .genre-btn-grid {
     display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 1.5rem;
@@ -279,7 +279,7 @@ html, body, [class*="css"] {
     border-color: var(--accent);
     color: var(--accent);
 }
- 
+
 /* ── Dividers & misc ── */
 hr { border-color: var(--border) !important; }
 .stMetric { background: var(--card) !important; border-radius: var(--radius) !important;
@@ -289,72 +289,64 @@ hr { border-color: var(--border) !important; }
             font-family: 'Bebas Neue', sans-serif !important; font-size: 1.8rem !important; }
 </style>
 """, unsafe_allow_html=True)
- 
- 
+
+
 # ── Data Loading ───────────────────────────────────────────────────────────────
 GENRE_NAMES = [
     "unknown","Action","Adventure","Animation","Children's","Comedy",
     "Crime","Documentary","Drama","Fantasy","Film-Noir","Horror",
     "Musical","Mystery","Romance","Sci-Fi","Thriller","War","Western"
 ]
- 
+
 def _find_data_file(filename: str) -> str:
-    """
-    Search several candidate locations for a MovieLens data file.
-    Works locally (app/ next to ml-100k/) and on Streamlit Cloud
-    (/mount/src/<repo>/ml-100k/).
-    """
     from pathlib import Path
- 
-    # Start from this file and walk up, then try common sub-paths
-    here = Path(__file__).resolve()
-    candidates = []
-    for parent in [here.parent, here.parent.parent, Path("/mount/src").resolve()]:
-        candidates += [
-            parent / "ml-100k" / filename,
-            parent / "data" / filename,
-        ]
-        # Also try every direct child of /mount/src/<something>/ml-100k
-        if parent.name == "src":
-            for child in parent.iterdir() if parent.exists() else []:
-                candidates.append(child / "ml-100k" / filename)
- 
+
+    here = Path(__file__).resolve()          # …/app/main.py
+    repo_root = here.parent.parent           # …/movie-recommender/
+
+    candidates = [
+        repo_root / "ml-100k" / filename,   # repo_root/ml-100k/  ← Streamlit Cloud & local
+        here.parent / "ml-100k" / filename, # app/ml-100k/
+        repo_root / "data" / filename,
+    ]
+
+    # Brute-force: any ml-100k folder anywhere under repo root
+    for p in repo_root.rglob(filename):
+        candidates.append(p)
+
     for p in candidates:
         if p.exists():
             return str(p)
- 
-    # Last resort: scan cwd tree
-    for p in Path.cwd().rglob(filename):
-        return str(p)
- 
+
     raise FileNotFoundError(
-        f"Cannot find '{filename}'. Tried: {[str(c) for c in candidates]}"
+        f"'{filename}' not found. Repo root: {repo_root}. "
+        f"Contents: {list(repo_root.iterdir())}"
     )
- 
- 
+
+
 @st.cache_data
 def load_data():
     item_path   = _find_data_file("u.item")
     rating_path = _find_data_file("u.data")
- 
+
     # ── Movies ──
     cols = ["movie_id","title","release_date","video_release","imdb_url"] + GENRE_NAMES
     movies = pd.read_csv(item_path, sep="|", names=cols,
                          encoding="latin-1", index_col=False)
- 
+
     # Parse year from title
     movies["year"] = movies["title"].str.extract(r"\((\d{4})\)").astype("Int64")
- 
+
     # Build genre list string for each movie
     def get_genres(row):
         return [g for g in GENRE_NAMES if row.get(g, 0) == 1]
     movies["genre_list"] = movies.apply(get_genres, axis=1)
     movies["genre_str"]  = movies["genre_list"].apply(lambda x: " ".join(x))
- 
+
     # Combined feature for TF-IDF
     movies["features"] = movies["title"].str.replace(r"\s*\(\d{4}\)", "", regex=True) \
                          + " " + movies["genre_str"] + " " + movies["genre_str"]  # double genre weight
- 
+
     # ── Ratings ──
     ratings = pd.read_csv(rating_path, sep="\t",
                           names=["user_id","movie_id","rating","timestamp"])
@@ -362,33 +354,33 @@ def load_data():
         avg_rating=("rating","mean"),
         num_ratings=("rating","count")
     ).reset_index()
- 
+
     movies = movies.merge(agg, on="movie_id", how="left")
     movies["avg_rating"]  = movies["avg_rating"].fillna(0).round(2)
     movies["num_ratings"] = movies["num_ratings"].fillna(0).astype(int)
- 
+
     # Weighted rating (Bayesian average)
     C = movies["avg_rating"].mean()
     m = movies["num_ratings"].quantile(0.60)
     movies["score"] = (movies["num_ratings"] / (movies["num_ratings"] + m)) * movies["avg_rating"] \
                      + (m / (movies["num_ratings"] + m)) * C
- 
+
     return movies
- 
- 
+
+
 @st.cache_data
 def build_similarity(movies):
     tfidf = TfidfVectorizer(stop_words="english", ngram_range=(1, 2))
     mat   = tfidf.fit_transform(movies["features"])
     sim   = cosine_similarity(mat)
     return sim
- 
- 
+
+
 def star_string(rating, max_stars=5):
     filled  = int(round(rating / (10 / max_stars)))
     return "★" * filled + "☆" * (max_stars - filled)
- 
- 
+
+
 def render_movie_card(row, rank=None, similarity=None):
     genres_html = "".join(
         f'<span class="genre-pill">{g}</span>' for g in row["genre_list"][:3]
@@ -396,7 +388,7 @@ def render_movie_card(row, rank=None, similarity=None):
     year_str  = f"<span class='card-year'>{int(row['year'])}</span>" if pd.notna(row.get("year")) else ""
     rank_html = f"<div class='card-rank'>{rank:02d}</div>" if rank else ""
     stars     = star_string(row["avg_rating"] * 2) if row["avg_rating"] > 0 else ""
- 
+
     sim_html = ""
     if similarity is not None:
         pct = int(similarity * 100)
@@ -405,7 +397,7 @@ def render_movie_card(row, rank=None, similarity=None):
             <div class='similarity-fill' style='width:{pct}%'></div>
         </div>
         <div class='similarity-label'>Match: {pct}%</div>"""
- 
+
     rating_html = ""
     if row["avg_rating"] > 0:
         rating_html = f"""
@@ -414,7 +406,7 @@ def render_movie_card(row, rank=None, similarity=None):
             <span class='rating-num'>{row['avg_rating']:.1f}</span>
             <span class='rating-count'>({row['num_ratings']:,} ratings)</span>
         </div>"""
- 
+
     return f"""
     <div class='movie-card'>
         {rank_html}
@@ -424,14 +416,14 @@ def render_movie_card(row, rank=None, similarity=None):
         {rating_html}
         {sim_html}
     </div>"""
- 
- 
+
+
 # ── Load ───────────────────────────────────────────────────────────────────────
 movies = load_data()
 sim_matrix = build_similarity(movies)
 title_to_idx = pd.Series(movies.index, index=movies["title"]).to_dict()
- 
- 
+
+
 # ── Hero ───────────────────────────────────────────────────────────────────────
 st.markdown(f"""
 <div class='hero'>
@@ -454,16 +446,16 @@ st.markdown(f"""
     </div>
 </div>
 """, unsafe_allow_html=True)
- 
- 
+
+
 # ── Tabs ───────────────────────────────────────────────────────────────────────
 tab1, tab2, tab3 = st.tabs([
     "🎯  Similar Movies",
     "🎭  Browse by Genre",
     "⭐  Top Rated",
 ])
- 
- 
+
+
 # ══════════════════════════════════════════════════════════════════════════════
 # TAB 1 — Similar Movies
 # ══════════════════════════════════════════════════════════════════════════════
@@ -474,7 +466,7 @@ with tab1:
         <span class='section-title'>Find Similar Movies</span>
         <span class='section-desc'>Based on title + genre similarity (TF-IDF + Cosine)</span>
     </div>""", unsafe_allow_html=True)
- 
+
     c1, c2 = st.columns([3, 1])
     with c1:
         selected = st.selectbox(
@@ -486,11 +478,11 @@ with tab1:
         )
     with c2:
         n_recs = st.slider("Results", 3, 20, 8, label_visibility="collapsed")
- 
+
     _, btn_col, _ = st.columns([3, 1, 3])
     with btn_col:
         go = st.button("✦  Find Similar", use_container_width=True)
- 
+
     if go and selected:
         idx = title_to_idx.get(selected)
         if idx is not None:
@@ -498,7 +490,7 @@ with tab1:
             scores = sorted(scores, key=lambda x: x[1], reverse=True)
             # skip self
             scores = [(i, s) for i, s in scores if i != idx][:n_recs]
- 
+
             base_row = movies.iloc[idx]
             base_genres = " · ".join(base_row["genre_list"][:3]) if base_row["genre_list"] else "—"
             st.markdown(f"""
@@ -506,7 +498,7 @@ with tab1:
                 🎬 &nbsp;Because you liked <strong>{base_row['title']}</strong>
                 &nbsp;·&nbsp; {base_genres}
             </div>""", unsafe_allow_html=True)
- 
+
             cols = st.columns(4)
             for rank, (i, score) in enumerate(scores, 1):
                 row = movies.iloc[i]
@@ -514,8 +506,8 @@ with tab1:
                     st.markdown(render_movie_card(row, rank=rank, similarity=score),
                                 unsafe_allow_html=True)
                     st.markdown("<br>", unsafe_allow_html=True)
- 
- 
+
+
 # ══════════════════════════════════════════════════════════════════════════════
 # TAB 2 — Browse by Genre
 # ══════════════════════════════════════════════════════════════════════════════
@@ -526,11 +518,11 @@ with tab2:
         <span class='section-title'>Browse by Genre</span>
         <span class='section-desc'>Filter &amp; sort movies by genre · ranked by score</span>
     </div>""", unsafe_allow_html=True)
- 
+
     BROWSABLE = [g for g in GENRE_NAMES if g != "unknown"]
     genre_cols = st.columns(5)
     selected_genres = []
- 
+
     # Multi-select with pills aesthetic
     selected_genres = st.multiselect(
         "Select one or more genres",
@@ -538,7 +530,7 @@ with tab2:
         default=["Action"],
         label_visibility="visible",
     )
- 
+
     g_sort = st.radio(
         "Sort by",
         ["⭐ Weighted Score", "🔢 Most Rated", "📅 Newest"],
@@ -546,28 +538,28 @@ with tab2:
         label_visibility="collapsed",
     )
     g_count = st.slider("Number of movies to show", 4, 24, 12, key="genre_n")
- 
+
     if selected_genres:
         mask = movies[selected_genres[0]] == 1
         for g in selected_genres[1:]:
             mask &= movies[g] == 1
         filtered = movies[mask].copy()
- 
+
         if "Weighted Score" in g_sort:
             filtered = filtered.sort_values("score", ascending=False)
         elif "Most Rated" in g_sort:
             filtered = filtered.sort_values("num_ratings", ascending=False)
         else:
             filtered = filtered.sort_values("year", ascending=False)
- 
+
         filtered = filtered.head(g_count)
- 
+
         genre_label = " + ".join(selected_genres)
         st.markdown(f"""
         <div class='result-header'>
             🎭 &nbsp;Top <strong>{len(filtered)}</strong> {genre_label} films
         </div>""", unsafe_allow_html=True)
- 
+
         cols = st.columns(4)
         for rank, (_, row) in enumerate(filtered.iterrows(), 1):
             with cols[(rank - 1) % 4]:
@@ -575,8 +567,8 @@ with tab2:
                 st.markdown("<br>", unsafe_allow_html=True)
     else:
         st.info("Select at least one genre above to start browsing.")
- 
- 
+
+
 # ══════════════════════════════════════════════════════════════════════════════
 # TAB 3 — Top Rated
 # ══════════════════════════════════════════════════════════════════════════════
@@ -587,10 +579,10 @@ with tab3:
         <span class='section-title'>Top Rated Films</span>
         <span class='section-desc'>Bayesian weighted score · min 50 ratings</span>
     </div>""", unsafe_allow_html=True)
- 
+
     decade_opts = ["All Decades", "1990s", "1980s", "1970s", "1960s", "Before 1960"]
     sort_opts   = ["⭐ Weighted Score", "🔢 Most Rated", "💯 Highest Avg Rating"]
- 
+
     tc1, tc2, tc3 = st.columns([2, 2, 1])
     with tc1:
         decade = st.selectbox("Decade", decade_opts, label_visibility="visible")
@@ -598,9 +590,9 @@ with tab3:
         t_sort = st.selectbox("Sort", sort_opts, label_visibility="visible")
     with tc3:
         t_count = st.slider("Show", 4, 24, 12, key="top_n")
- 
+
     top = movies[movies["num_ratings"] >= 50].copy()
- 
+
     decade_map = {
         "1990s": (1990, 1999), "1980s": (1980, 1989),
         "1970s": (1970, 1979), "1960s": (1960, 1969),
@@ -609,41 +601,41 @@ with tab3:
     if decade in decade_map:
         lo, hi = decade_map[decade]
         top = top[(top["year"] >= lo) & (top["year"] <= hi)]
- 
+
     if "Weighted Score" in t_sort:
         top = top.sort_values("score", ascending=False)
     elif "Most Rated" in t_sort:
         top = top.sort_values("num_ratings", ascending=False)
     else:
         top = top.sort_values("avg_rating", ascending=False)
- 
+
     top = top.head(t_count)
- 
+
     st.markdown(f"""
     <div class='result-header'>
         ⭐ &nbsp;Showing <strong>{len(top)}</strong> top-rated films
         {f' from the <strong>{decade}</strong>' if decade != "All Decades" else ""}
     </div>""", unsafe_allow_html=True)
- 
+
     cols = st.columns(4)
     for rank, (_, row) in enumerate(top.iterrows(), 1):
         with cols[(rank - 1) % 4]:
             st.markdown(render_movie_card(row, rank=rank), unsafe_allow_html=True)
             st.markdown("<br>", unsafe_allow_html=True)
- 
+
     # ── Genre breakdown chart ──
     st.markdown("""
     <div class='section-header' style='margin-top:2.5rem'>
         <div class='section-icon'>📊</div>
         <span class='section-title'>Dataset Overview</span>
     </div>""", unsafe_allow_html=True)
- 
+
     m1, m2, m3, m4 = st.columns(4)
     m1.metric("Total Movies",   f"{len(movies):,}")
     m2.metric("Total Ratings",  "100,000")
     m3.metric("Avg Rating",     f"{movies['avg_rating'].mean():.2f} / 5")
     m4.metric("Genres Covered", str(len(BROWSABLE)))
- 
+
     st.markdown("<br>", unsafe_allow_html=True)
     genre_counts = {g: int(movies[g].sum()) for g in BROWSABLE}
     gc_df = pd.DataFrame({"Genre": list(genre_counts.keys()),

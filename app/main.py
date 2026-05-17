@@ -312,31 +312,52 @@ def load_data():
         Path.cwd(),
     ]
 
-    ml100k_dir = None
+    item_path = None
     for root in roots:
-        candidate = root / "ml-100k"
-        if (candidate / "u.item").exists():
-            ml100k_dir = candidate
+        for candidate in (
+            root / "ml-100k" / "u.item",
+            root / "data" / "u.item",
+            root / "data" / "movies.csv",
+        ):
+            if candidate.exists():
+                item_path = candidate
+                break
+        if item_path is not None:
             break
 
-    if ml100k_dir is None:
-        # Absolute last resort: walk /mount looking for u.item
+    if item_path is None:
+        # Absolute last resort: walk /mount looking for supported movie files.
         try:
-            for p in Path("/mount").rglob("u.item"):
-                ml100k_dir = p.parent
-                break
+            for pattern in ("u.item", "movies.csv"):
+                for p in Path("/mount").rglob(pattern):
+                    if p.name == "movies.csv" and p.parent.name != "data":
+                        continue
+                    item_path = p
+                    break
+                if item_path is not None:
+                    break
         except Exception:
             pass
 
-    if ml100k_dir is None:
+    if item_path is None:
         raise FileNotFoundError(
-            f"Cannot find ml-100k/u.item. "
+            f"Cannot find movie metadata. Expected ml-100k/u.item, data/u.item, or data/movies.csv. "
             f"__file__={here}, cwd={Path.cwd()}, "
-            f"roots tried={[str(r / 'ml-100k') for r in roots]}"
+            f"roots tried={[str(r) for r in roots]}"
         )
 
-    item_path   = str(ml100k_dir / "u.item")
-    rating_path = str(ml100k_dir / "u.data")
+    rating_path = None
+    for root in roots:
+        for candidate in (
+            root / "ml-100k" / "u.data",
+            root / "data" / "u.data",
+            item_path.parent / "u.data",
+        ):
+            if candidate.exists():
+                rating_path = candidate
+                break
+        if rating_path is not None:
+            break
 
     # ── Movies ──
     cols = ["movie_id","title","release_date","video_release","imdb_url"] + GENRE_NAMES
@@ -357,22 +378,30 @@ def load_data():
                          + " " + movies["genre_str"] + " " + movies["genre_str"]  # double genre weight
 
     # ── Ratings ──
-    ratings = pd.read_csv(rating_path, sep="\t",
-                          names=["user_id","movie_id","rating","timestamp"])
-    agg = ratings.groupby("movie_id").agg(
-        avg_rating=("rating","mean"),
-        num_ratings=("rating","count")
-    ).reset_index()
+    if rating_path is not None:
+        ratings = pd.read_csv(rating_path, sep="\t",
+                              names=["user_id","movie_id","rating","timestamp"])
+        agg = ratings.groupby("movie_id").agg(
+            avg_rating=("rating","mean"),
+            num_ratings=("rating","count")
+        ).reset_index()
 
-    movies = movies.merge(agg, on="movie_id", how="left")
-    movies["avg_rating"]  = movies["avg_rating"].fillna(0).round(2)
-    movies["num_ratings"] = movies["num_ratings"].fillna(0).astype(int)
+        movies = movies.merge(agg, on="movie_id", how="left")
+        movies["avg_rating"]  = movies["avg_rating"].fillna(0).round(2)
+        movies["num_ratings"] = movies["num_ratings"].fillna(0).astype(int)
+    else:
+        movies["avg_rating"] = 0.0
+        movies["num_ratings"] = 0
 
     # Weighted rating (Bayesian average)
     C = movies["avg_rating"].mean()
     m = movies["num_ratings"].quantile(0.60)
-    movies["score"] = (movies["num_ratings"] / (movies["num_ratings"] + m)) * movies["avg_rating"] \
-                     + (m / (movies["num_ratings"] + m)) * C
+    denominator = movies["num_ratings"] + m
+    movies["score"] = np.where(
+        denominator > 0,
+        (movies["num_ratings"] / denominator) * movies["avg_rating"] + (m / denominator) * C,
+        0,
+    )
 
     return movies
 

@@ -71,30 +71,41 @@ def load_movies():
         "imdb_url"
     ] + GENRES
 
-    # Load the movie file
-    if file_path.name == "movies.csv":
+    # Some copies of the MovieLens data are named movies.csv even though they
+    # are headerless, pipe-delimited u.item files. Detect the format from its
+    # contents instead of relying on the extension.
+    with file_path.open("r", encoding="latin-1") as movie_file:
+        first_line = movie_file.readline()
 
-        movies = pd.read_csv(file_path)
-
-        # If your CSV already has these columns,
-        # the rest of the app can use them.
-        if "title" not in movies.columns:
-            st.error("Your movies.csv must contain a 'title' column.")
-            st.stop()
-
-        # Add missing columns
-        for genre in GENRES:
-            if genre not in movies.columns:
-                movies[genre] = 0
-
-    else:
-
+    if "|" in first_line:
         movies = pd.read_csv(
             file_path,
             sep="|",
             names=columns,
             encoding="latin-1"
         )
+    else:
+        movies = pd.read_csv(file_path, encoding="latin-1")
+
+        if "title" not in movies.columns:
+            st.error("The movie CSV must contain a 'title' column.")
+            st.stop()
+
+        if "movie_id" not in movies.columns:
+            movies.insert(0, "movie_id", range(1, len(movies) + 1))
+
+        for genre in GENRES:
+            if genre not in movies.columns:
+                movies[genre] = 0
+
+    movies["title"] = movies["title"].fillna("").astype(str).str.strip()
+    movies = movies[movies["title"] != ""].reset_index(drop=True)
+    movies[GENRES] = (
+        movies[GENRES]
+        .apply(pd.to_numeric, errors="coerce")
+        .fillna(0)
+        .astype(int)
+    )
 
     # Get year from movie title
     movies["year"] = movies["title"].str.extract(
@@ -119,12 +130,7 @@ def load_movies():
     )
 
     # Create text for recommendation system
-    movies["features"] = (
-        movies["title"] + " " +
-        movies["genre_list"].apply(
-            lambda x: " ".join(x)
-        )
-    )
+    movies["features"] = movies["title"] + " " + movies["genre_list"].apply(" ".join)
 
     # Load ratings
     rating_file = project_folder / "ml-100k" / "u.data"
@@ -167,19 +173,23 @@ def load_movies():
         "number_of_ratings"
     ].fillna(0)
 
+    if movies.empty:
+        st.error("The movie data does not contain any valid movie titles.")
+        st.stop()
+
     return movies
 
 
 # Create similarity matrix
 @st.cache_resource
-def create_similarity(movies):
+def create_similarity(features):
 
     vectorizer = TfidfVectorizer(
         stop_words="english"
     )
 
     movie_vectors = vectorizer.fit_transform(
-        movies["features"]
+        features
     )
 
     similarity = cosine_similarity(
@@ -215,14 +225,16 @@ def show_movie(movie):
 # Load data
 movies = load_movies()
 
-similarity = create_similarity(movies)
+similarity = create_similarity(tuple(movies["features"]))
 
 
 # Find movie index
-movie_indexes = pd.Series(
-    movies.index,
-    index=movies["title"]
-).to_dict()
+movie_indexes = (
+    movies.reset_index()
+    .groupby("title", sort=False)["index"]
+    .apply(list)
+    .to_dict()
+)
 
 
 # Create tabs
@@ -255,7 +267,9 @@ with tab1:
 
     if st.button("Recommend Movies"):
 
-        movie_index = movie_indexes[selected_movie]
+        # A few MovieLens titles are duplicated. Use the first matching entry
+        # consistently instead of letting a dictionary overwrite it implicitly.
+        movie_index = movie_indexes[selected_movie][0]
 
         # Get similarity scores
         scores = list(

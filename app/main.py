@@ -28,24 +28,41 @@ GENRES = [
 @st.cache_data
 def load_movies():
 
-    # Find the movie file
+    # Find the folder where main.py is located
+    app_folder = Path(__file__).resolve().parent
+
+    # Go one folder up to the project folder
+    project_folder = app_folder.parent
+
+    # Possible locations of the movie data
     possible_files = [
-        "ml-100k/u.item",
-        "data/u.item"
+        project_folder / "ml-100k" / "u.item",
+        project_folder / "data" / "u.item",
+        project_folder / "data" / "movies.csv"
     ]
 
     file_path = None
 
+    # Check each possible file
     for file in possible_files:
-        if Path(file).exists():
+
+        if file.exists():
             file_path = file
             break
 
+    # If no file is found, show the actual paths
     if file_path is None:
+
         st.error("Movie data file was not found.")
+
+        st.write("I checked these locations:")
+
+        for file in possible_files:
+            st.write(str(file))
+
         st.stop()
 
-    # Column names for MovieLens data
+    # MovieLens column names
     columns = [
         "movie_id",
         "title",
@@ -54,12 +71,30 @@ def load_movies():
         "imdb_url"
     ] + GENRES
 
-    movies = pd.read_csv(
-        file_path,
-        sep="|",
-        names=columns,
-        encoding="latin-1"
-    )
+    # Load the movie file
+    if file_path.name == "movies.csv":
+
+        movies = pd.read_csv(file_path)
+
+        # If your CSV already has these columns,
+        # the rest of the app can use them.
+        if "title" not in movies.columns:
+            st.error("Your movies.csv must contain a 'title' column.")
+            st.stop()
+
+        # Add missing columns
+        for genre in GENRES:
+            if genre not in movies.columns:
+                movies[genre] = 0
+
+    else:
+
+        movies = pd.read_csv(
+            file_path,
+            sep="|",
+            names=columns,
+            encoding="latin-1"
+        )
 
     # Get year from movie title
     movies["year"] = movies["title"].str.extract(
@@ -72,6 +107,7 @@ def load_movies():
         movie_genres = []
 
         for genre in GENRES:
+
             if row[genre] == 1:
                 movie_genres.append(genre)
 
@@ -91,9 +127,9 @@ def load_movies():
     )
 
     # Load ratings
-    rating_file = "ml-100k/u.data"
+    rating_file = project_folder / "ml-100k" / "u.data"
 
-    if Path(rating_file).exists():
+    if rating_file.exists():
 
         ratings = pd.read_csv(
             rating_file,
@@ -118,6 +154,7 @@ def load_movies():
         )
 
     else:
+
         movies["average_rating"] = 0
         movies["number_of_ratings"] = 0
 

@@ -268,4 +268,3 @@ with tab3:
 Path("/mnt/data/simple_movie_recommender.py").write_text(code, encoding="utf-8")
 print("Created: /mnt/data/simple_movie_recommender.py")
 print("The code contains a simple Streamlit UI with similar movies, genre browsing, and top-rated movies.")
-'''
